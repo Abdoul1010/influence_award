@@ -69,6 +69,53 @@ body {
   border-color: rgba(232, 184, 75, 0.8);
 }
 
+/* --- Grille des candidats : 2 colonnes garanties sur mobile --- */
+.candidates-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: 1.25rem;
+}
+
+@media (max-width: 640px) {
+  .candidates-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 0.6rem;
+  }
+}
+
+/* --- Projecteurs dorés éclairant le logo dans le hero --- */
+@keyframes spotlightPulse {
+  0%, 100% { opacity: 0.55; transform: scale(1); }
+  50% { opacity: 0.95; transform: scale(1.12); }
+}
+
+.spotlight-corner {
+  position: absolute;
+  top: -25%;
+  width: 380px;
+  height: 380px;
+  border-radius: 50%;
+  background: radial-gradient(
+    circle,
+    rgba(184, 137, 30, 0.4) 0%,
+    rgba(232, 184, 75, 0.18) 30%,
+    transparent 10%
+  );
+  filter: blur(76px);
+  pointer-events: none;
+  animation: spotlightPulse 7s ease-in-out infinite;
+  z-index: 0;
+}
+
+.spotlight-left {
+  left: -12%;
+}
+
+.spotlight-right {
+  right: -12%;
+  animation-delay: 3.2s;
+}
+
 /* --- Défilement des logos partenaires --- */
 @keyframes marqueeScroll {
   from { transform: translateX(0); }
