@@ -1,5 +1,5 @@
 import { supabaseAdmin } from "@/lib/supabaseClient";
-import { initiatePayment, PAYMENT_PROVIDERS } from "@/lib/payment";
+import { initiatePayment, initiateCardPayment, PAYMENT_PROVIDERS } from "@/lib/payment";
 
 const VOTE_PRICE_FCFA = 100;
 const MAX_VOTES_PER_TRANSACTION = 500;
@@ -14,13 +14,18 @@ function normalizePhone(raw) {
 
 export async function POST(request) {
   try {
-    const { categoryId, candidateId, phone, provider, voteCount } = await request.json();
+    const body = await request.json();
+    const { categoryId, candidateId, provider, voteCount } = body;
+    const isCard = provider === "bank_card";
 
-    if (!categoryId || !candidateId || !phone || !provider) {
+    if (!categoryId || !candidateId || !provider) {
       return Response.json(
-        { error: "categoryId, candidateId, phone et provider sont requis." },
+        { error: "categoryId, candidateId et provider sont requis." },
         { status: 400 }
       );
+    }
+    if (!isCard && !body.phone) {
+      return Response.json({ error: "Le numéro de téléphone est requis." }, { status: 400 });
     }
 
     const count = Number.parseInt(voteCount, 10) || 1;
@@ -35,12 +40,25 @@ export async function POST(request) {
       return Response.json({ error: "Moyen de paiement invalide." }, { status: 400 });
     }
 
-    const normalizedPhone = normalizePhone(phone);
-    if (!/^\d{8}$/.test(normalizedPhone)) {
-      return Response.json(
-        { error: "Numéro de téléphone invalide (8 chiffres attendus)." },
-        { status: 400 }
-      );
+    let normalizedPhone = null;
+    if (!isCard) {
+      normalizedPhone = normalizePhone(body.phone);
+      if (!/^\d{8}$/.test(normalizedPhone)) {
+        return Response.json(
+          { error: "Numéro de téléphone invalide (8 chiffres attendus)." },
+          { status: 400 }
+        );
+      }
+    }
+
+    if (isCard) {
+      const { cardNumber, expiry, cvv, cardHolderName } = body;
+      if (!cardNumber || !expiry || !cvv || !cardHolderName) {
+        return Response.json(
+          { error: "Tous les champs de la carte bancaire sont requis." },
+          { status: 400 }
+        );
+      }
     }
 
     const totalAmount = count * VOTE_PRICE_FCFA;
@@ -63,7 +81,9 @@ export async function POST(request) {
       transaction_ref: transactionRef,
       category_id: categoryId,
       candidate_id: candidateId,
-      phone_number: normalizedPhone,
+      // Aucune donnée de carte n'est jamais stockée ici — seulement le
+      // téléphone pour les moyens mobile money, ou "carte" en repère pour les paiements carte.
+      phone_number: normalizedPhone || "carte",
       vote_count: count,
       amount: totalAmount,
       status: "pending",
@@ -74,13 +94,26 @@ export async function POST(request) {
 
     let paymentResult;
     try {
-      paymentResult = await initiatePayment({
-        provider,
-        amount: totalAmount,
-        phone: normalizedPhone,
-        reference: transactionRef,
-        payerName: "Votant InfluenceAward",
-      });
+      if (isCard) {
+        const { cardNumber, expiry, cvv, cardHolderName, browserInfo } = body;
+        paymentResult = await initiateCardPayment({
+          amount: totalAmount,
+          reference: transactionRef,
+          payerName: cardHolderName,
+          cardNumber,
+          expiry,
+          cvv,
+          browserInfo,
+        });
+      } else {
+        paymentResult = await initiatePayment({
+          provider,
+          amount: totalAmount,
+          phone: normalizedPhone,
+          reference: transactionRef,
+          payerName: "Votant InfluenceAward",
+        });
+      }
     } catch (paymentError) {
       await db
         .from("vote_transactions")
@@ -93,9 +126,9 @@ export async function POST(request) {
       .from("vote_transactions")
       .update({
         provider_reference: paymentResult.referenceTransaction,
-        code_achat: paymentResult.codeAchat,
+        code_achat: paymentResult.codeAchat || null,
         provider_payload: paymentResult.raw,
-        // Les opérateurs mobile money peuvent confirmer immédiatement.
+        // Les opérateurs mobile money / cartes sans 3DS peuvent confirmer immédiatement.
         ...(paymentResult.pending
           ? {}
           : { status: "confirmed", confirmed_at: new Date().toISOString() }),
@@ -105,7 +138,8 @@ export async function POST(request) {
     return Response.json({
       transactionRef,
       pending: paymentResult.pending,
-      codeAchat: paymentResult.codeAchat,
+      codeAchat: paymentResult.codeAchat || null,
+      redirectUrl: paymentResult.redirectUrl || null,
       message: paymentResult.message,
     });
   } catch (err) {

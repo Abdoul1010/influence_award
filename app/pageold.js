@@ -288,13 +288,13 @@ export default function VotePage() {
                     const isLeader = topVotes > 0 && votes === topVotes;
                     return (
                       <div key={c.id} style={styles.card} className="candidate-card">
+                        {isLeader && (
+                          <img src="/images/leader-trophy.png" alt="" style={styles.leaderBadge} />
+                        )}
                         <div
                           className="candidate-photo-wrap"
                           style={isLeader ? styles.candidatePhotoWrapLeader : undefined}
                         >
-                          {isLeader && (
-                            <img src="/images/gold-trophy.png" alt="" style={styles.leaderBadge} />
-                          )}
                           <img
                             src={
                               c.photo_url ||
@@ -305,7 +305,9 @@ export default function VotePage() {
                             alt={c.name}
                           />
                         </div>
-                        <h3 style={styles.candidateName}>{c.name} ({c.votes} voix)</h3>
+                        <h3 style={styles.candidateName}>
+                          {c.name} <span style={styles.candidateVotes}>({votes} voix)</span>
+                        </h3>
                         <button onClick={() => openVoteModal(c)} style={styles.voteButton}>
                           Voter
                         </button>
@@ -619,7 +621,7 @@ const styles = {
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
-    height: "130px",
+    height: "172px",
     minWidth: "140px",
     padding: "0.75rem 1.5rem",
     marginRight: "1.25rem",
@@ -635,7 +637,7 @@ const styles = {
     color: colors.ink,
     whiteSpace: "nowrap",
   },
-  partnerLogoImg: { maxHeight: "102px", maxWidth: "110px", objectFit: "contain" },
+  partnerLogoImg: { maxHeight: "144px", maxWidth: "110px", objectFit: "contain" },
   main: { maxWidth: "1100px", margin: "0 auto", padding: "0 1.5rem" },
   nomineesBanner: {
     display: "inline-block",
@@ -700,6 +702,7 @@ const styles = {
     gap: "1.25rem",
   },
   card: {
+    position: "relative",
     background: colors.card,
     border: `1px solid ${colors.border}`,
     borderRadius: "16px",
@@ -717,12 +720,18 @@ const styles = {
   },
   leaderBadge: {
     position: "absolute",
-    top: "-14px",
-    right: "-10px",
+    bottom: "70px",
+    left: "0px",
     width: "40px",
     height: "auto",
-    zIndex: 2,
+    zIndex: 3,
     filter: "drop-shadow(0 4px 8px rgba(0,0,0,0.35))",
+  },
+  candidateVotes: {
+    fontFamily: "'Space Mono', monospace",
+    fontWeight: 400,
+    fontSize: "0.75rem",
+    color: colors.inkDim,
   },
   candidateName: {
     fontFamily: "'Fraunces', serif",

@@ -2,6 +2,7 @@ import { supabaseAdmin } from "@/lib/supabaseClient";
 import { initiatePayment, PAYMENT_PROVIDERS } from "@/lib/payment";
 
 const VOTE_PRICE_FCFA = 100;
+const MAX_VOTES_PER_TRANSACTION = 500;
 const VALID_PROVIDERS = PAYMENT_PROVIDERS.map((p) => p.code);
 
 function normalizePhone(raw) {
@@ -13,11 +14,19 @@ function normalizePhone(raw) {
 
 export async function POST(request) {
   try {
-    const { categoryId, candidateId, phone, provider } = await request.json();
+    const { categoryId, candidateId, phone, provider, voteCount } = await request.json();
 
     if (!categoryId || !candidateId || !phone || !provider) {
       return Response.json(
         { error: "categoryId, candidateId, phone et provider sont requis." },
+        { status: 400 }
+      );
+    }
+
+    const count = Number.parseInt(voteCount, 10) || 1;
+    if (count < 1 || count > MAX_VOTES_PER_TRANSACTION) {
+      return Response.json(
+        { error: `Le nombre de voix doit être entre 1 et ${MAX_VOTES_PER_TRANSACTION}.` },
         { status: 400 }
       );
     }
@@ -33,6 +42,8 @@ export async function POST(request) {
         { status: 400 }
       );
     }
+
+    const totalAmount = count * VOTE_PRICE_FCFA;
 
     const db = supabaseAdmin();
 
@@ -53,7 +64,8 @@ export async function POST(request) {
       category_id: categoryId,
       candidate_id: candidateId,
       phone_number: normalizedPhone,
-      amount: VOTE_PRICE_FCFA,
+      vote_count: count,
+      amount: totalAmount,
       status: "pending",
       payment_provider: provider,
     });
@@ -64,7 +76,7 @@ export async function POST(request) {
     try {
       paymentResult = await initiatePayment({
         provider,
-        amount: VOTE_PRICE_FCFA,
+        amount: totalAmount,
         phone: normalizedPhone,
         reference: transactionRef,
         payerName: "Votant InfluenceAward",
