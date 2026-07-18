@@ -73,6 +73,7 @@ export default function VotePage() {
   const [pendingPayment, setPendingPayment] = useState(null);
   const [pendingStatus, setPendingStatus] = useState(null);
   const [voteModalCandidate, setVoteModalCandidate] = useState(null);
+  const [showInfoModal, setShowInfoModal] = useState(false);
   const [cardHolderName, setCardHolderName] = useState("");
   const [cardNumber, setCardNumber] = useState("");
   const [cardExpiry, setCardExpiry] = useState("");
@@ -265,6 +266,17 @@ export default function VotePage() {
     };
   }, [pendingPayment, pendingStatus]);
 
+  const categoryLeaders = categories
+    .map((cat) => {
+      const cands = candidatesByCategory[cat.id] || [];
+      if (cands.length === 0) return null;
+      const top = [...cands].sort(
+        (a, b) => (voteCounts[b.id] || 0) - (voteCounts[a.id] || 0)
+      )[0];
+      return { category: cat, candidate: top, votes: voteCounts[top.id] || 0 };
+    })
+    .filter(Boolean);
+
   return (
     <div style={styles.page}>
       <div style={styles.petalsLayer} aria-hidden="true">
@@ -291,48 +303,39 @@ export default function VotePage() {
           Votez pour les jeunes talents qui inspirent la jeunesse d'aujourd'hui
           et de demain. 100 FCFA par voix.
         </p>
+        <button style={styles.infoButton} onClick={() => setShowInfoModal(true)}>
+          En savoir plus
+        </button>
       </header>
 
-      {leaderboard.length > 0 && (
+      {/*ategoryLeaders.length > 0 && (
         <section style={styles.leaderboardSection}>
-          <img src="/images/gold-trophy.png" alt="" style={styles.trophyIcon} />
-          <p style={styles.eyebrow}>En ce moment</p>
-          <div style={styles.leaderboardList}>
-            {leaderboard.map((c, i) => (
-              <div
-                key={c.candidate_id}
-                style={{
-                  ...styles.leaderboardRow,
-                  ...(i === 0 ? styles.leaderboardRowFirst : {}),
-                }}
-                className={i === 0 ? "leaderboard-first" : ""}
-              >
-                <span
-                  style={{
-                    ...styles.leaderboardRank,
-                    ...(i === 0
-                      ? { color: colors.gold }
-                      : i === 1
-                      ? { color: colors.inkDim }
-                      : i === 2
-                      ? { color: colors.red }
-                      : {}),
-                  }}
-                >
-                  #{i + 1}
-                </span>
-                <span style={styles.leaderboardName}>{c.name}</span>
-                <span style={styles.leaderboardCategory}>
-                  {categories.find((cat) => cat.id === c.category_id)?.label || ""}
-                </span>
-                <span style={styles.leaderboardVotes}>
-                  {c.votes} voix
-                </span>
+          {/*<img src="/images/gold-trophy.png" alt="" style={styles.trophyIcon} />}
+          <p style={styles.eyebrow}>En tête, par catégorie</p>
+          <div className="candidates-grid" style={styles.leaderGrid}>
+            {categoryLeaders.map(({ category, candidate, votes }) => (
+              <div key={category.id} style={styles.leaderCard} className="leaderboard-first">
+                <img src="/images/gold-trophy.png" alt="" style={styles.leaderBadge} />
+                <div style={styles.leaderCardPhotoWrap}>
+                  <img
+                    src={
+                      candidate.photo_url ||
+                      `https://ui-avatars.com/api/?name=${encodeURIComponent(
+                        candidate.name
+                      )}&background=C69A2A&color=FAF7F0&size=256`
+                    }
+                    alt={candidate.name}
+                    style={styles.leaderCardPhoto}
+                  />
+                </div>
+                <p style={styles.leaderCardCategory}>{category.label}</p>
+                <p style={styles.leaderCardName}>{candidate.name}</p>
+                <p style={styles.leaderCardVotes}>{votes} voix</p>
               </div>
             ))}
           </div>
         </section>
-      )}
+      )*/}
 
       <main style={styles.main}>
         {error && <div style={styles.errorBanner}>{error}</div>}
@@ -368,7 +371,7 @@ export default function VotePage() {
                     return (
                       <div key={c.id} style={styles.card} className="candidate-card">
                         {isLeader && (
-                          <img src="/images/gold-trophy.png" alt="" style={styles.leaderBadge} />
+                          <img src="/images/leader-trophy.png" alt="" style={styles.leaderBadge} />
                         )}
                         <div
                           className="candidate-photo-wrap"
@@ -401,8 +404,8 @@ export default function VotePage() {
 
       {loading ? (
           <div style={styles.loaderBox}>
-            <div style={styles.loaderSpinner} />
-            <p style={styles.loaderText}>Chargement…</p>
+            <div />
+            <p style={styles.loaderText}></p>
           </div>
         ) : (
           <div style={styles.nomineesBanner}>
@@ -431,6 +434,104 @@ export default function VotePage() {
           Dévéloppé par Rahma Group Code - Tous droit réservé
         </p>
       </footer>
+
+      {showInfoModal && (
+        <div style={styles.modalOverlay} onClick={() => setShowInfoModal(false)}>
+          <div
+            style={styles.infoModalCard}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <button
+              style={styles.infoCloseButton}
+              onClick={() => setShowInfoModal(false)}
+              aria-label="Fermer"
+            >
+              ✕
+            </button>
+
+            <img src="/images/logo.png" alt="INFLUENCE AWARD" style={styles.infoModalLogo} />
+
+            <h2 style={styles.infoSectionTitle}>Présentation</h2>
+            <p style={styles.infoText}>
+              INFLUENCE AWARD est un évènement dédié à la valorisation des jeunes talents et
+              acteurs influents de la région de Dosso.
+            </p>
+            <p style={styles.infoText}>
+              À travers cet événement, nous mettons en lumière les créateurs de contenu,
+              entrepreneurs, comédiens, animateurs, photographes, sportifs, artistes et jeunes
+              leaders qui impactent positivement leur communauté par leur créativité, leur
+              engagement et leur innovation.
+            </p>
+            <p style={styles.infoText}>
+              Plus qu'une cérémonie de distinction, INFLUENCE AWARD se veut une véritable
+              plateforme d'inspiration, de visibilité et de célébration de l'excellence jeunesse
+              et la promotion de la culture Nigérienne.
+            </p>
+            <p style={styles.infoText}>
+              L'événement réunira un public jeune, dynamique et connecté autour d'une soirée
+              exceptionnelle mêlant distinctions, culture, networking et hommage au patrimoine
+              local.
+            </p>
+
+            <h2 style={styles.infoSectionTitle}>Objectif</h2>
+            <p style={styles.infoText}>
+              L'objectif est de promouvoir une influence positive, encourager les initiatives
+              locales et offrir une reconnaissance méritée aux talents qui inspirent la jeunesse
+              d'aujourd'hui et de demain.
+            </p>
+
+            <h2 style={styles.infoSectionTitle}>Règlement des votes</h2>
+            <p style={styles.infoText}>
+              Les votes organisés dans le cadre de INFLUENCE AWARD ont pour objectif de
+              distinguer les candidats qui se démarquent par leur talent, leur impact et leur
+              influence positive.
+            </p>
+            <p style={styles.infoText}>
+              Le comité d'organisation s'engage à garantir un processus de vote transparent,
+              équitable et sécurisé.
+            </p>
+            <p style={styles.infoText}>
+              Toute tentative de fraude, de manipulation des votes, d'utilisation de moyens
+              illicites ou de contournement du système entraînera l'annulation des votes
+              concernés et pourra conduire à la disqualification du candidat ou de toute
+              personne impliquée.
+            </p>
+            <p style={styles.infoText}>
+              En participant aux votes, chaque utilisateur s'engage à respecter le présent
+              règlement et les principes d'intégrité qui fondent INFLUENCE AWARD.
+            </p>
+
+            <h2 style={styles.infoSectionTitle}>Contact</h2>
+            <p style={styles.infoText}>Numéro : +227 92 66 29 30 / 86 72 12 55</p>
+            <div style={styles.infoLinks}>
+              <a
+                href="https://www.facebook.com/share/p/18dGqxm8rF/"
+                target="_blank"
+                rel="noopener noreferrer"
+                style={styles.infoLink}
+              >
+                Facebook
+              </a>
+              <a
+                href="https://www.tiktok.com/@influence.award?_r=1&_t=ZS-96CH1iY1S1E"
+                target="_blank"
+                rel="noopener noreferrer"
+                style={styles.infoLink}
+              >
+                TikTok
+              </a>
+              <a
+                href="https://whatsapp.com/channel/0029VbCnevG2v1IyCqBgOY1z"
+                target="_blank"
+                rel="noopener noreferrer"
+                style={styles.infoLink}
+              >
+                WhatsApp
+              </a>
+            </div>
+          </div>
+        </div>
+      )}
 
       {voteModalCandidate && (
         <div style={styles.modalOverlay}>
@@ -735,6 +836,21 @@ const styles = {
     lineHeight: 1.5,
     fontSize: "0.95rem",
   },
+  infoButton: {
+    marginTop: "1.25rem",
+    padding: "0.55rem 1.5rem",
+    borderRadius: "999px",
+    border: `1px solid ${colors.gold}`,
+    background: "transparent",
+    color: colors.gold,
+    fontFamily: "'Montserrat', sans-serif",
+    fontWeight: 600,
+    fontSize: "0.8rem",
+    letterSpacing: "0.03em",
+    cursor: "pointer",
+    position: "relative",
+    zIndex: 1,
+  },
   leaderboardSection: {
     maxWidth: "700px",
     margin: "0 auto 2.5rem",
@@ -748,6 +864,48 @@ const styles = {
     filter: "drop-shadow(0 4px 10px rgba(184,137,30,0.3))",
   },
   leaderboardList: { display: "flex", flexDirection: "column", gap: "0.6rem" },
+  leaderGrid: { marginTop: "0.5rem" },
+  leaderCard: {
+    position: "relative",
+    background: colors.card,
+    border: `1px solid ${colors.gold}`,
+    borderRadius: "16px",
+    padding: "1rem",
+    textAlign: "center",
+    boxShadow: "0 4px 14px rgba(184,137,30,0.12)",
+  },
+  leaderCardPhotoWrap: {
+    position: "relative",
+    width: "100%",
+    aspectRatio: "1 / 1",
+    borderRadius: "12px",
+    overflow: "hidden",
+    marginBottom: "0.6rem",
+    border: `2px solid ${colors.gold}`,
+  },
+  leaderCardPhoto: { width: "100%", height: "100%", objectFit: "cover", display: "block" },
+  leaderCardCategory: {
+    fontFamily: "'Montserrat', sans-serif",
+    fontSize: "0.65rem",
+    textTransform: "uppercase",
+    letterSpacing: "0.05em",
+    color: colors.inkDim,
+    margin: "0 0 0.2rem",
+  },
+  leaderCardName: {
+    fontFamily: "'Fraunces', serif",
+    fontWeight: 600,
+    fontSize: "0.95rem",
+    margin: "0 0 0.2rem",
+    color: colors.ink,
+  },
+  leaderCardVotes: {
+    fontFamily: "'Space Mono', monospace",
+    fontSize: "0.75rem",
+    color: colors.gold,
+    fontWeight: 700,
+    margin: 0,
+  },
   leaderboardRow: {
     display: "flex",
     alignItems: "center",
@@ -860,10 +1018,11 @@ const styles = {
   },
   categorySection: { marginBottom: "3rem" },
   categoryTitle: {
-    fontFamily: "'Fraunces', serif",
-    fontStyle: "italic",
-    fontWeight: 600,
-    fontSize: "1.5rem",
+    fontFamily: "'Montserrat', sans-serif",
+    fontStyle: "normal",
+    fontWeight: 700,
+    fontSize: "1.35rem",
+    letterSpacing: "0.02em",
     color: colors.gold,
     textAlign: "center",
     margin: "0 0 1.5rem",
@@ -893,7 +1052,7 @@ const styles = {
   leaderBadge: {
     position: "absolute",
     top: "-18px",
-    right: "-8px",
+    left: "-8px",
     width: "40px",
     height: "auto",
     zIndex: 3,
@@ -955,6 +1114,66 @@ const styles = {
     width: "100%",
     textAlign: "center",
     boxShadow: "0 20px 50px rgba(34,26,18,0.25)",
+  },
+  infoModalCard: {
+    position: "relative",
+    background: colors.card,
+    border: `1px solid ${colors.gold}`,
+    borderRadius: "16px",
+    padding: "2rem",
+    maxWidth: "540px",
+    width: "100%",
+    maxHeight: "85vh",
+    overflowY: "auto",
+    textAlign: "left",
+    boxShadow: "0 20px 50px rgba(34,26,18,0.3)",
+  },
+  infoCloseButton: {
+    position: "absolute",
+    top: "1rem",
+    right: "1rem",
+    width: "32px",
+    height: "32px",
+    borderRadius: "50%",
+    border: `1px solid ${colors.border}`,
+    background: colors.bg,
+    color: colors.ink,
+    cursor: "pointer",
+    fontSize: "0.9rem",
+  },
+  infoModalLogo: {
+    display: "block",
+    maxWidth: "220px",
+    margin: "0 auto 1.5rem",
+  },
+  infoSectionTitle: {
+    fontFamily: "'Montserrat', sans-serif",
+    fontWeight: 700,
+    fontSize: "1.05rem",
+    color: colors.gold,
+    margin: "1.5rem 0 0.6rem",
+  },
+  infoText: {
+    fontSize: "0.88rem",
+    color: colors.inkDim,
+    lineHeight: 1.6,
+    margin: "0 0 0.75rem",
+  },
+  infoLinks: {
+    display: "flex",
+    flexWrap: "wrap",
+    gap: "0.6rem",
+    marginTop: "0.5rem",
+  },
+  infoLink: {
+    padding: "0.5rem 1.1rem",
+    borderRadius: "999px",
+    border: `1px solid ${colors.gold}`,
+    color: colors.gold,
+    textDecoration: "none",
+    fontFamily: "'Montserrat', sans-serif",
+    fontWeight: 600,
+    fontSize: "0.78rem",
   },
   threeDsFrame: {
     width: "100%",

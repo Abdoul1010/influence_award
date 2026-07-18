@@ -21,7 +21,33 @@ const PROVIDERS = [
   { code: "airtel_money", label: "Airtel Money" },
   { code: "moov_flooz", label: "Moov Flooz" },
   { code: "zamani_cash", label: "Zamani Cash" },
+  { code: "bank_card", label: "Carte bancaire (Visa/Mastercard)" },
 ];
+
+function getCodeFromDimensions(width, height) {
+  if (width <= 250 && height <= 400) return "01";
+  if (width <= 390 && height <= 400) return "02";
+  if (width <= 500 && height <= 600) return "03";
+  if (width <= 600 && height <= 400) return "04";
+  return "05";
+}
+
+function getBrowserInfo() {
+  if (typeof window === "undefined") return {};
+  return {
+    javaEnabled: false,
+    javascriptEnabled: true,
+    screenHeight: window.screen.height,
+    screenWidth: window.screen.width,
+    TZ: new Date().getTimezoneOffset() / -60,
+    challengeWindowSize: getCodeFromDimensions(window.screen.width, window.screen.height),
+  };
+}
+
+function formatCardNumber(raw) {
+  const digits = raw.replace(/\D/g, "").slice(0, 16);
+  return digits.match(/.{1,4}/g)?.join("-") || digits;
+}
 
 export default function VotePage() {
   const PETAL_COLORS = ["#C69A2A", "#B4182F", "#E8B84B", "#D98C4A"];
@@ -47,6 +73,11 @@ export default function VotePage() {
   const [pendingPayment, setPendingPayment] = useState(null);
   const [pendingStatus, setPendingStatus] = useState(null);
   const [voteModalCandidate, setVoteModalCandidate] = useState(null);
+  const [cardHolderName, setCardHolderName] = useState("");
+  const [cardNumber, setCardNumber] = useState("");
+  const [cardExpiry, setCardExpiry] = useState("");
+  const [cardCvv, setCardCvv] = useState("");
+  const [threeDsUrl, setThreeDsUrl] = useState(null);
 
   useEffect(() => {
     async function load() {
@@ -105,30 +136,77 @@ export default function VotePage() {
     setVoteModalCandidate(candidate);
     setVoteCount(1);
     setPhoneError(null);
+    setCardHolderName("");
+    setCardNumber("");
+    setCardExpiry("");
+    setCardCvv("");
+    setThreeDsUrl(null);
   }
 
   async function handleVote() {
     if (!voteModalCandidate) return;
     setPhoneError(null);
-    if (!isValidPhone(phone)) {
+
+    const isCard = provider === "bank_card";
+
+    if (!isCard && !isValidPhone(phone)) {
       setPhoneError("Entrez un numéro valide (8 chiffres, ex : 90 12 34 56).");
       return;
     }
+    if (isCard) {
+      const digits = cardNumber.replace(/\D/g, "");
+      if (!cardHolderName.trim()) {
+        setPhoneError("Entrez le nom du titulaire de la carte.");
+        return;
+      }
+      if (digits.length !== 16) {
+        setPhoneError("Numéro de carte invalide (16 chiffres).");
+        return;
+      }
+      if (!/^\d{2}\/\d{2}$/.test(cardExpiry)) {
+        setPhoneError("Date d'expiration invalide (format MM/AA).");
+        return;
+      }
+      if (!/^\d{3}$/.test(cardCvv)) {
+        setPhoneError("CVV invalide (3 chiffres).");
+        return;
+      }
+    }
+
     setSubmitting(true);
     setError(null);
     try {
+      const payload = {
+        categoryId: voteModalCandidate.category_id,
+        candidateId: voteModalCandidate.id,
+        provider,
+        voteCount,
+      };
+      if (isCard) {
+        payload.cardHolderName = cardHolderName;
+        payload.cardNumber = cardNumber;
+        payload.expiry = cardExpiry;
+        payload.cvv = cardCvv;
+        payload.browserInfo = getBrowserInfo();
+      } else {
+        payload.phone = phone;
+      }
+
       const res = await fetch("/api/votes/initiate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          categoryId: voteModalCandidate.category_id,
-          candidateId: voteModalCandidate.id,
-          phone,
-          provider,
-          voteCount,
-        }),
+        body: JSON.stringify(payload),
       });
       const data = await res.json();
+
+      // On efface immédiatement les champs sensibles de la carte, qu'il y ait
+      // succès ou échec — ils ne doivent jamais rester en mémoire plus longtemps.
+      if (isCard) {
+        setCardNumber("");
+        setCardCvv("");
+        setCardExpiry("");
+      }
+
       if (!res.ok) {
         setPhoneError(data.error || "Le vote a échoué.");
         return;
@@ -146,6 +224,7 @@ export default function VotePage() {
         message: data.message,
         provider,
       });
+      setThreeDsUrl(data.redirectUrl || null);
       setPendingStatus("pending");
     } catch (e) {
       setError("Connexion impossible. Réessayez.");
@@ -289,7 +368,7 @@ export default function VotePage() {
                     return (
                       <div key={c.id} style={styles.card} className="candidate-card">
                         {isLeader && (
-                          <img src="/images/leader-trophy.png" alt="" style={styles.leaderBadge} />
+                          <img src="/images/gold-trophy.png" alt="" style={styles.leaderBadge} />
                         )}
                         <div
                           className="candidate-photo-wrap"
@@ -392,30 +471,16 @@ export default function VotePage() {
                 Total : <strong>{voteCount * VOTE_PRICE_FCFA} FCFA</strong>
               </p>
 
-              <label style={styles.phoneLabel} htmlFor="modal-phone-input">
-                Numéro de téléphone
-              </label>
-              <input
-                id="modal-phone-input"
-                type="tel"
-                inputMode="numeric"
-                placeholder="90 12 34 56"
-                value={phone}
-                onChange={(e) => {
-                  setPhone(e.target.value);
-                  setPhoneError(null);
-                }}
-                style={styles.phoneInput}
-                autoFocus
-              />
-
-              <label style={{ ...styles.phoneLabel, marginTop: "0.75rem" }} htmlFor="modal-provider-select">
+              <label style={styles.phoneLabel} htmlFor="modal-provider-select">
                 Moyen de paiement
               </label>
               <select
                 id="modal-provider-select"
                 value={provider}
-                onChange={(e) => setProvider(e.target.value)}
+                onChange={(e) => {
+                  setProvider(e.target.value);
+                  setPhoneError(null);
+                }}
                 style={styles.phoneInput}
               >
                 {PROVIDERS.map((p) => (
@@ -424,6 +489,96 @@ export default function VotePage() {
                   </option>
                 ))}
               </select>
+
+              {provider === "bank_card" ? (
+                <>
+                  <label style={styles.phoneLabel} htmlFor="modal-card-name">
+                    Nom du titulaire
+                  </label>
+                  <input
+                    id="modal-card-name"
+                    type="text"
+                    placeholder="NOM Prénom"
+                    value={cardHolderName}
+                    onChange={(e) => setCardHolderName(e.target.value)}
+                    style={styles.phoneInput}
+                    autoFocus
+                  />
+
+                  <label style={styles.phoneLabel} htmlFor="modal-card-number">
+                    Numéro de carte
+                  </label>
+                  <input
+                    id="modal-card-number"
+                    type="text"
+                    inputMode="numeric"
+                    placeholder="1234-5678-1234-5678"
+                    value={cardNumber}
+                    onChange={(e) => setCardNumber(formatCardNumber(e.target.value))}
+                    style={styles.phoneInput}
+                    maxLength={19}
+                  />
+
+                  <div style={{ display: "flex", gap: "0.75rem" }}>
+                    <div style={{ flex: 1 }}>
+                      <label style={styles.phoneLabel} htmlFor="modal-card-expiry">
+                        Expiration (MM/AA)
+                      </label>
+                      <input
+                        id="modal-card-expiry"
+                        type="text"
+                        placeholder="12/28"
+                        value={cardExpiry}
+                        onChange={(e) => {
+                          let v = e.target.value.replace(/\D/g, "").slice(0, 4);
+                          if (v.length > 2) v = `${v.slice(0, 2)}/${v.slice(2)}`;
+                          setCardExpiry(v);
+                        }}
+                        style={styles.phoneInput}
+                        maxLength={5}
+                      />
+                    </div>
+                    <div style={{ flex: 1 }}>
+                      <label style={styles.phoneLabel} htmlFor="modal-card-cvv">
+                        CVV
+                      </label>
+                      <input
+                        id="modal-card-cvv"
+                        type="password"
+                        inputMode="numeric"
+                        placeholder="123"
+                        value={cardCvv}
+                        onChange={(e) => setCardCvv(e.target.value.replace(/\D/g, "").slice(0, 3))}
+                        style={styles.phoneInput}
+                        maxLength={3}
+                      />
+                    </div>
+                  </div>
+                  <p style={styles.modalHint}>
+                    Vos données bancaires sont transmises directement à KomiPay et ne sont jamais
+                    conservées sur ce site.
+                  </p>
+                </>
+              ) : (
+                <>
+                  <label style={styles.phoneLabel} htmlFor="modal-phone-input">
+                    Numéro de téléphone
+                  </label>
+                  <input
+                    id="modal-phone-input"
+                    type="tel"
+                    inputMode="numeric"
+                    placeholder="90 12 34 56"
+                    value={phone}
+                    onChange={(e) => {
+                      setPhone(e.target.value);
+                      setPhoneError(null);
+                    }}
+                    style={styles.phoneInput}
+                    autoFocus
+                  />
+                </>
+              )}
 
               {phoneError && <p style={styles.phoneError}>{phoneError}</p>}
             </div>
@@ -452,8 +607,24 @@ export default function VotePage() {
 
       {pendingPayment && (
         <div style={styles.modalOverlay}>
-          <div style={styles.modalCard}>
-            {pendingStatus === "pending" && (
+          <div style={threeDsUrl ? styles.modalCardWide : styles.modalCard}>
+            {pendingStatus === "pending" && threeDsUrl && (
+              <>
+                <h3 style={styles.modalTitle}>Vérification de sécurité (3D Secure)</h3>
+                <p style={styles.modalText}>
+                  Votre banque demande une vérification supplémentaire. Complétez-la ci-dessous.
+                </p>
+                <iframe
+                  src={threeDsUrl}
+                  title="Vérification 3D Secure"
+                  style={styles.threeDsFrame}
+                />
+                <p style={styles.modalHint}>
+                  Cette fenêtre se met à jour automatiquement une fois la vérification terminée.
+                </p>
+              </>
+            )}
+            {pendingStatus === "pending" && !threeDsUrl && (
               <>
                 <div style={styles.modalSpinner} />
                 <h3 style={styles.modalTitle}>Confirmez votre paiement</h3>
@@ -486,6 +657,7 @@ export default function VotePage() {
                   onClick={() => {
                     setPendingPayment(null);
                     setPendingStatus(null);
+                    setThreeDsUrl(null);
                   }}
                 >
                   Réessayer
@@ -720,8 +892,8 @@ const styles = {
   },
   leaderBadge: {
     position: "absolute",
-    bottom: "70px",
-    left: "0px",
+    top: "-18px",
+    right: "-8px",
     width: "40px",
     height: "auto",
     zIndex: 3,
@@ -773,6 +945,23 @@ const styles = {
     width: "100%",
     textAlign: "center",
     boxShadow: "0 20px 50px rgba(34,26,18,0.25)",
+  },
+  modalCardWide: {
+    background: colors.card,
+    border: `1px solid ${colors.gold}`,
+    borderRadius: "16px",
+    padding: "1.5rem",
+    maxWidth: "480px",
+    width: "100%",
+    textAlign: "center",
+    boxShadow: "0 20px 50px rgba(34,26,18,0.25)",
+  },
+  threeDsFrame: {
+    width: "100%",
+    height: "420px",
+    border: `1px solid ${colors.border}`,
+    borderRadius: "10px",
+    margin: "1rem 0",
   },
   modalSpinner: {
     width: "36px",

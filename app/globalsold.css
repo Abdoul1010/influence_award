@@ -1,4 +1,4 @@
-@import url("https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,600;0,9..144,700;1,9..144,500&family=Montserrat:wght@500;600;700;800&family=Sora:wght@400;500;600;700&family=Space+Mono:wght@400;700&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,600;0,9..144,700;1,9..144,500&family=Sora:wght@400;500;600;700&family=Space+Mono:wght@400;700&display=swap");
 
 * {
   box-sizing: border-box;
@@ -98,10 +98,10 @@ body {
   background: radial-gradient(
     circle,
     rgba(184, 137, 30, 0.4) 0%,
-    rgba(232, 184, 75, 0.18) 0%,
-    transparent 40%
+    rgba(232, 184, 75, 0.18) 30%,
+    transparent 10%
   );
-  filter: blur(6px);
+  filter: blur(76px);
   pointer-events: none;
   animation: spotlightPulse 7s ease-in-out infinite;
   z-index: 0;
