@@ -390,9 +390,7 @@ export default function VotePage() {
                         <h3 style={styles.candidateName}>
                           {c.name} <span style={styles.candidateVotes}>({votes} voix)</span>
                         </h3>
-                        <button onClick={() => openVoteModal(c)} style={styles.voteButton}>
-                          Voter
-                        </button>
+                        
                       </div>
                     );
                   })}

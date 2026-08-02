@@ -74,6 +74,17 @@ export default function AdminDashboard() {
             Déconnexion
           </button>
         </div>
+        <div style={{ display: "flex", gap: "0.75rem" }}>
+          <a href="/admin/reconcile" style={{ ...styles.buttonSecondary, textDecoration: "none", display: "inline-flex", alignItems: "center" }}>
+            Voir votes
+          </a>
+          <button onClick={exportCsv} style={styles.button}>
+            Exporter en CSV
+          </button>
+          <button onClick={handleLogout} style={styles.buttonSecondary}>
+            Déconnexion
+          </button>
+        </div>
       </div>
 
       <div style={styles.summaryRow}>
